@@ -1,65 +1,39 @@
 #include "parser.h"
+#include "semantic.h"
+#include <fstream>
+#include <sstream>
 #include <iostream>
 
-Parser::Parser(const std::vector<Token>& tokens)
-    : tokens(tokens), current(0) {}
+ASTNode* parseCode(const std::string& filename) {
+    std::ifstream file(filename);
+    std::string line;
+    ASTNode* program = new ASTNode{"Program"};
+    ASTNode* lastDecl = program;
 
-void Parser::parse() {
-    expr();
-    if (peek().type != TokenType::END) {
-        throw std::runtime_error("Unexpected tokens after expression");
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string type, name;
+        if (iss >> type >> name) {
+            ASTNode* declNode = new ASTNode{"Declaration"};
+            declNode->children.push_back(new ASTNode{type});
+            declNode->children.push_back(new ASTNode{name});
+            lastDecl->children.push_back(declNode);
+
+            // Insert symbol into the symbol table
+            analyzer.insert(name, type); // Check for redeclaration here
+        }
     }
+
+    return program;
 }
 
-const Token& Parser::peek() const {
-    if (current < tokens.size())
-        return tokens[current];
-    static Token endToken = {TokenType::END, ""};
-    return endToken;
-}
+void printAST(ASTNode* node, int indent) {
+    if (node == nullptr) return;
 
-const Token& Parser::advance() {
-    if (current < tokens.size())
-        return tokens[current++];
-    static Token endToken = {TokenType::END, ""};
-    return endToken;
-}
+    for (int i = 0; i < indent; ++i) std::cout << "  ";
+    std::cout << node->name << std::endl;
 
-bool Parser::match(TokenType type) {
-    if (peek().type == type) {
-        advance();
-        return true;
-    }
-    return false;
-}
-
-void Parser::expect(TokenType type) {
-    if (!match(type)) {
-        throw std::runtime_error("Unexpected token: expected different type");
-    }
-}
-
-void Parser::expr() {
-    term();
-    while (match(TokenType::PLUS) || match(TokenType::MINUS)) {
-        term();
-    }
-}
-
-void Parser::term() {
-    factor();
-    while (match(TokenType::MUL) || match(TokenType::DIV)) {
-        factor();
-    }
-}
-
-void Parser::factor() {
-    if (match(TokenType::NUMBER)) {
-        // Valid number
-    } else if (match(TokenType::LPAREN)) {
-        expr();
-        expect(TokenType::RPAREN);
-    } else {
-        throw std::runtime_error("Expected number or '('");
+    for (auto& child : node->children) {
+        printAST(child, indent + 1);
     }
 }

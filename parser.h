@@ -1,28 +1,11 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "token.h"
+#include "ast.h"
+#include <string>
 #include <vector>
-#include <stdexcept>
 
-class Parser {
-public:
-    Parser(const std::vector<Token>& tokens);
+ASTNode* parseCode(const std::string& filename);
+void printAST(ASTNode* node, int indent = 0);
 
-    void parse(); // Entry point for parsing
-
-private:
-    std::vector<Token> tokens;
-    size_t current;
-
-    const Token& peek() const;
-    const Token& advance();
-    bool match(TokenType type);
-    void expect(TokenType type);
-
-    void expr();
-    void term();
-    void factor();
-};
-
-#endif
+#endif // PARSER_H

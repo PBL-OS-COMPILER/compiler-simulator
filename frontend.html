@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Compiler Design Interface</title>
+  <style>
+    body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
+    #left, #right { width: 50%; padding: 20px; box-sizing: border-box; }
+    textarea { width: 100%; height: 80%; }
+    button { margin-top: 10px; padding: 10px 20px; }
+    pre { background: #f4f4f4; padding: 10px; height: 80%; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div id="left">
+    <h2>Input C++ Code</h2>
+    <textarea id="codeInput"></textarea>
+    <button onclick="tokenizeCode()">Tokenize</button>
+  </div>
+  <div id="right">
+    <h2>Tokens</h2>
+    <pre id="tokenOutput"></pre>
+  </div>
+
+  <script>
+    function tokenizeCode() {
+      const code = document.getElementById("codeInput").value;
+      fetch("/tokenize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("tokenOutput").textContent = data.tokens;
+      });
+    }
+  </script>
+</body>
+</html>

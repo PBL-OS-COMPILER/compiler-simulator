@@ -1,102 +1,37 @@
-#include "ast.h"
-#include "semantic.h"
+#include <iostream>
+#include <memory>
 #include <fstream>
-#include <sstream>
+#include "parser.h"
+#include "semantic.h"
 
-SemanticAnalyzer analyzer;
+int main() {
+    std::shared_ptr<ASTNode> root = parseCode("Code.txt");
 
-void analyzeAST(const std::shared_ptr<ASTNode> &node)
-{
-    if (node->type == "Declaration")
-    {
-        std::string varName = node->value;
-        std::string varType = node->children[0]->value;
-        analyzer.insert(varName, varType);
-    }
-
-    for (const auto &child : node->children)
-    {
-        analyzeAST(child);
-    }
-
-    if (node->type == "Expression" && node->value == "+")
-    {
-        std::string lhs = node->children[0]->value;
-        std::string rhs = node->children[1]->value;
-        std::string lhsType = analyzer.lookup(lhs);
-        std::string rhsType = analyzer.lookup(rhs);
-        if (lhsType != rhsType)
-        {
-            std::cerr << "Type mismatch: " << lhs << " (" << lhsType << ") + "
-                      << rhs << " (" << rhsType << ")\n";
-        }
-    }
-}
-
-std::shared_ptr<ASTNode> parseLine(const std::string &line)
-{
-    std::istringstream iss(line);
-    std::string type, name, eq, val;
-
-    iss >> type >> name;
-    if (iss >> eq >> val)
-    {
-        // Remove trailing semicolon
-        if (!val.empty() && val.back() == ';')
-            val.pop_back();
-
-        auto decl = std::make_shared<ASTNode>("Declaration", name);
-        decl->children.push_back(std::make_shared<ASTNode>("Type", type));
-
-        // Check if value is an expression
-        if (val.find('+') != std::string::npos)
-        {
-            auto expr = std::make_shared<ASTNode>("Expression", "+");
-            std::istringstream exprStream(val);
-            std::string var1, plus, var2;
-            exprStream >> var1 >> plus >> var2;
-            expr->children.push_back(std::make_shared<ASTNode>("Variable", var1));
-            expr->children.push_back(std::make_shared<ASTNode>("Variable", var2));
-            decl->children.push_back(expr);
-        }
-        else
-        {
-            decl->children.push_back(std::make_shared<ASTNode>("Value", val));
-        }
-
-        return decl;
-    }
-
-    return nullptr;
-}
-
-int main()
-{
-    std::ifstream infile("program.cpp");
-    if (!infile)
-    {
-        std::cerr << "Error: Could not open input file.\n";
+    // Open file to write semantic errors and symbol table
+    std::ofstream outfile("semantic.txt");
+    if (!outfile) {
+        std::cerr << "Error: Could not open semantic.txt for writing\n";
         return 1;
     }
 
-    auto root = std::make_shared<ASTNode>("Program", "");
-    std::string line;
+    // Redirect std::cerr to semantic.txt for semantic errors
+    std::streambuf* original_cerr = std::cerr.rdbuf();
+    std::cerr.rdbuf(outfile.rdbuf());
 
-    while (std::getline(infile, line))
-    {
-        auto node = parseLine(line);
-        if (node)
-        {
-            root->children.push_back(node);
-        }
+    SemanticAnalyzer analyzer;
+    analyzer.analyze(root);
+
+    // Restore cerr
+    std::cerr.rdbuf(original_cerr);
+
+    // Write symbol table to semantic.txt after errors
+    outfile << "--- Symbol Table ---\n";
+    const auto& table = analyzer.getSymbolTable();
+    for (const auto& entry : table) {
+        outfile << entry.first << " : " << entry.second << "\n";
     }
 
-    std::cout << "\n--- Abstract Syntax Tree ---\n";
-    printAST(root);
-
-    std::cout << "\n--- Semantic Analysis ---\n";
-    analyzeAST(root);
-    analyzer.print();
+    outfile.close();
 
     return 0;
 }

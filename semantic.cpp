@@ -1,31 +1,75 @@
-#include "semantic.h"
 #include <iostream>
+#include <memory>        // For std::shared_ptr
+#include "parser.h"      // For parseCode and ASTNode
+#include "semantic.h"    // For SemanticAnalyzer
+using namespace std;
 
-SemanticAnalyzer analyzer;
 
-// Insert a new symbol (name and type) into the symbol table
 void SemanticAnalyzer::insert(const std::string& name, const std::string& type) {
     if (symbolTable.find(name) != symbolTable.end()) {
-        std::cerr << "Semantic Error: Variable '" << name << "' redeclared.\n";
-    } else {
-        symbolTable[name] = type;  // Insert in unordered_map
+        std::cerr << "Warning: Redeclaration of variable '" << name << "'\n";
     }
+    symbolTable[name] = type;
 }
 
-// Print the symbol table (name and type of all symbols)
-void SemanticAnalyzer::print() const {
-    std::cout << "\nSymbol Table:\n";
-    std::cout << "Name\tType\n----------------\n";
-    for (const auto& sym : symbolTable) {
-        std::cout << sym.first << "\t" << sym.second << "\n";
-    }
-}
+void SemanticAnalyzer::checkUsedVariables(const std::shared_ptr<ASTNode>& exprNode) const {
+    if (!exprNode) return;
 
-// Check for undeclared variables (called after AST creation or during parsing)
-void SemanticAnalyzer::checkUndeclaredVariables(const std::vector<std::string>& usedVariables) const {
-    for (const auto& var : usedVariables) {
-        if (symbolTable.find(var) == symbolTable.end()) {
-            std::cerr << "Semantic Error: Variable '" << var << "' used but not declared.\n";
+    // Check if node is variable usage
+    if (exprNode->type == "Identifier" || exprNode->type == "Name") {
+        const std::string& varName = exprNode->value;
+        if (symbolTable.find(varName) == symbolTable.end()) {
+            std::cerr << "Semantic Error: Undeclared variable '" << varName << "' used in expression\n";
         }
+    }
+
+    // Recursively check children
+    for (const auto& child : exprNode->children) {
+        checkUsedVariables(child);
+    }
+}
+
+void SemanticAnalyzer::analyze(const std::shared_ptr<ASTNode>& node) {
+    if (!node) return;
+
+    for (const auto& child : node->children) {
+        if (child->type == "Declaration") {
+            // Extract variable type and name from children
+            std::string varType, varName;
+            for (const auto& gc : child->children) {
+                if (gc->type == "Type")
+                    varType = gc->value;
+                else if (gc->type == "Name")
+                    varName = gc->value;
+            }
+            if (!varName.empty() && !varType.empty())
+                insert(varName, varType);
+            else
+                std::cerr << "Semantic Error: Invalid declaration node\n";
+        }
+        else if (child->type == "Assignment") {
+            // LHS variable name stored in child->value
+            std::string lhsVar = child->value;
+
+            if (symbolTable.find(lhsVar) == symbolTable.end()) {
+                std::cerr << "Semantic Error: Undeclared variable '" << lhsVar << "' on left side of assignment\n";
+            }
+
+            // Check RHS expression subtree for used variables
+            for (const auto& exprChild : child->children) {
+            checkUsedVariables(exprChild);
+            }
+
+        }
+
+        // Recursively analyze nested children (e.g. nested blocks)
+        analyze(child);
+    }
+}
+
+void SemanticAnalyzer::print() const {
+    std::cout << "--- Symbol Table ---\n";
+    for (const auto& entry : symbolTable) {
+        std::cout << entry.first << " : " << entry.second << "\n";
     }
 }

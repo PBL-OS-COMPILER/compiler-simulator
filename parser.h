@@ -1,11 +1,5 @@
-#ifndef PARSER_H
-#define PARSER_H
-
-#include "ast.h"
+#include <memory>
 #include <string>
-#include <vector>
+#include "ast.h"
 
-ASTNode* parseCode(const std::string& filename);
-void printAST(ASTNode* node, int indent = 0);
-
-#endif // PARSER_H
+std::shared_ptr<ASTNode> parseCode(const std::string& filename);

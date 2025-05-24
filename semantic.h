@@ -1,39 +1,27 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
-#include <iostream>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+#include <memory>
+#include "ast.h"  // Your ASTNode definition
 
-// Semantic Analyzer (Symbol Table)
 class SemanticAnalyzer {
 private:
     std::unordered_map<std::string, std::string> symbolTable;
 
+    // Recursively check used variables in expression subtree
+    void checkUsedVariables(const std::shared_ptr<ASTNode>& exprNode) const;
+
 public:
-    void insert(const std::string& name, const std::string& type) {
-        if (symbolTable.find(name) != symbolTable.end()) {
-            std::cerr << "Error: Variable '" << name << "' redeclared.\n";
-        } else {
-            symbolTable[name] = type;
-        }
-    }
+    // Insert declaration (warn on redeclaration)
+    void insert(const std::string& name, const std::string& type);
 
-    std::string lookup(const std::string& name) const {
-        auto it = symbolTable.find(name);
-        if (it != symbolTable.end()) {
-            return it->second;
-        } else {
-            return "undefined";
-        }
-    }
+    // Analyze the AST node recursively for semantic errors
+    void analyze(const std::shared_ptr<ASTNode>& node);
 
-    void print() const {
-        std::cout << "Symbol Table:\n";
-        for (const auto& entry : symbolTable) {
-            std::cout << entry.first << ": " << entry.second << "\n";
-        }
-    }
+    // Print the symbol table
+    void print() const;
 };
 
 #endif // SEMANTIC_H
